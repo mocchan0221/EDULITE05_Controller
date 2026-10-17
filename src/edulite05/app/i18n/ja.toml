@@ -3,7 +3,7 @@
 
 [app]
 title = "EL05 Controller"
-loading = "画面部品を読み込んでいます…(共有フォルダ上では十数秒かかります)"
+loading = "画面部品を読み込んでいます…"
 
 [tier.low]
 short = "低出力"

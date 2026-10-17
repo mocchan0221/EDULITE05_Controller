@@ -3,7 +3,7 @@
 
 [app]
 title = "EL05 Controller"
-loading = "Loading UI components… (this can take 10+ seconds on a network share)"
+loading = "Loading UI components…"
 
 [tier.low]
 short = "Low power"

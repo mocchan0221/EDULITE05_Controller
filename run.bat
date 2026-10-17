@@ -1,14 +1,11 @@
 @echo off
-rem EDULITE05 Controller launcher (run.bat). Works from UNC paths via pushd.
+rem EDULITE05 Controller launcher (run.bat). Runs from the script's folder.
 pushd "%~dp0"
 if errorlevel 1 (
     echo [ERROR] pushd failed: "%~dp0"
     pause
     exit /b 1
 )
-set "UV_LINK_MODE=copy"
-rem venv はローカルディスクに置く(共有フォルダ上だと起動・import が非常に遅いため)
-if not defined UV_PROJECT_ENVIRONMENT set "UV_PROJECT_ENVIRONMENT=%LOCALAPPDATA%\edulite05\venv"
 where uv >nul 2>nul
 if errorlevel 1 (
     echo [ERROR] uv was not found.
