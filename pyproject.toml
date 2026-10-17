@@ -1,0 +1,54 @@
+[project]
+name = "edulite05"
+version = "0.1.0"
+description = "RobStride EduLite 05 (EL05) CAN アクチュエータ試運転・評価用ローカル GUI ツール"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "PySide6>=6.11,<6.12",
+    "pyqtgraph==0.14.0",
+    "numpy>=2",
+    "pyserial>=3.5",
+    "pyvista>=0.49",
+    "pyvistaqt>=0.13",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+pycan = ["python-can>=4.5"]
+
+[project.scripts]
+edulite05 = "edulite05.app.main:main"
+edulite05-cli = "edulite05.cli.main:main"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-qt",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/edulite05"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["docs/vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/**" = ["E501"]
+"tests/**" = ["E501"]  # 和文コメントは全角を 2 桁と数えるため長さを機械的に縛らない
+"src/edulite05/app/ui/style.py" = ["E501"]  # QSS のテキスト
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"

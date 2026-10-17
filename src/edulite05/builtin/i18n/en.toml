@@ -1,0 +1,5 @@
+# English strings for the built-in plugins (names and descriptions shown on the Settings page).
+"組込みの運転モード" = "Built-in operate modes"
+"JOG・速度・位置・MIT・電流・試験信号・2台連動" = "JOG, velocity, position, MIT, current, test signal, paired motion"
+"組込みページ" = "Built-in pages"
+"運転・パラメータ・診断・保守・設定" = "Operate, Parameters, Diagnostics, Maintenance, Settings"

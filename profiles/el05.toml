@@ -1,0 +1,414 @@
+# RobStride EduLite 05 (EL05) プロファイル。モータ固有の数値の正(CLAUDE.md)。
+# 出典: docs/research/el05_protocol.md §1.5(レンジ)/ §5.2(パラメータ)、architecture.md §4.3.1(出力段階)
+# 注意: 0x70xx のパラメータは運転用の値(runtime)で、type 22 で保存されず、電源を切ると工場値に戻る
+#   (実測 HW-6)。永続化されるのは 0x20xx と 0x702A / 0x702B(§2.10)。ここの default は工場値。
+# group は app/pages/params/groups.py の分類(制御ゲイン / 制限 / 指令 / 状態 / 設定)に合わせる。
+
+[motor]
+model = "EL05"
+name = "RobStride EduLite 05"
+
+[ranges]  # type 1/2 のスケーリング範囲(§1.5。EN の T=±5.5 は誤記で ±6)
+position = [-12.57, 12.57]
+velocity = [-50.0, 50.0]
+torque = [-6.0, 6.0]
+kp = [0.0, 500.0]
+kd = [0.0, 5.0]
+
+# 位置の折り返しと MIT の p_set の座標系(el05_protocol.md §8.0、hw_bench.md HW-3b、open_questions.md Q-P12)
+#  - type 2 フィードバックの位置は ±wrap_half(= 4π)で折り返す。mechPos(0x7019)は折り返さない多回転値。
+#  - wrap_margin [rad]: 多回転位置が wrap_half - wrap_margin を超える領域では、MIT の位置目標(p_set の
+#    レンジが ±4π)を表現できない / 曖昧なので SafetyGuard が kp を 0 にする(減衰と t_ff のみ)。
+#  - mit_position_frame: MIT の p_set をモータ内部で何と比べるか(実機未確認 = Q-P12)。
+#      "unknown" = 両方の解釈で最悪トルクを見積もる(既定。確認できるまで変えない)
+#      "wrapped" = 折り返し位置(type 2 の位置)と比べる
+#      "multi"   = 多回転位置(mechPos)と比べる
+#    Q-P12 を実機で確認したら、"wrapped" か "multi" に更新する。
+[position]
+wrap_half = 12.566370614359172  # 4π [rad]
+wrap_margin = 0.5
+mit_position_frame = "unknown"
+
+[limits]  # 物理上限
+current = 11.0
+speed = 50.0
+torque = 6.0
+temp_fault = 135.0
+
+# kd_negative_max: MIT の kd の負側の上限(大きさ)。フレームの kd は 0–5 で負を送れないため、
+#   kd < 0 は PC 側で t_ff += kd·(v_set - v) として足す(SafetyGuard。architecture.md §4.3.1)。
+# friction_comp_max: 摩擦補償 t_ff += friction_comp·tanh(v / v_eps) の上限 [N·m]。
+[power_tiers.low]  # architecture.md §4.3.1
+torque = 0.5
+current = 1.0
+speed = 5.0
+kp = 20.0
+kd = 1.0
+kd_negative_max = 0.05
+friction_comp_max = 0.1
+
+[power_tiers.high]
+torque = 6.0
+current = 11.0
+speed = 50.0
+kp = 500.0
+kd = 5.0
+kd_negative_max = 0.2
+friction_comp_max = 0.3
+
+# MIT のホスト側項(負の kd・摩擦補償)と暴走ガード(SafetyGuard。docs/research/hw_bench.md HW-4:
+# この個体のクーロン摩擦 ≈ 0.03 N·m、粘性 ≈ 0.014 N·m·s/rad)
+#  - friction_v_eps [rad/s]: tanh(v / v_eps) の幅
+#  - runaway_on / runaway_off: 段階の速度上限に対する比。|v| > on で暴走ガード開始、|v| < off で解除
+#  - guard_kd: ガード中に強制する最低の kd(フレームの kd)
+[mit_host]
+friction_v_eps = 0.05
+runaway_on = 0.8
+runaway_off = 0.4
+guard_kd = 0.1
+
+
+# 消費電力の概算(core/telemetry/power.py。運転ページの「消費電力」と telemetry の `power_est`)
+#   P_in = τ·ω + 1.5·R_ph·(|τ|/Kt)² + P_base。バス電流は測っていない目安値。
+# 係数の較正状況:
+#  - kt [N·m/A]: 0.65 = **実測**(MEASURED。トルク読み値 = 0.62–0.66 × iqf(実 q 電流)。
+#    hw_bench.md HW-6 の追試)。なお電流モードの実電流は iq_ref の約 1/9(1 A 指令で約 0.1 A)
+#  - 以下の r_phase / p_base は未較正(UNCALIBRATED):
+#  - r_phase [Ω]: 1.36 = RS05 の線間抵抗 2.72 Ω の半分。EL05 の値は公表されていない
+#  - p_base [W]: 1.0(制御回路などの待機消費の仮置き)
+[power_estimate]
+kt = 0.65  # 実測
+r_phase = 1.36
+p_base = 1.0
+
+
+[[params]]
+index = 0x7005
+key = "run_mode"
+label = "動作モード(run_mode)"
+group = "指令"
+dtype = "uint8"
+unit = ""
+min = 0
+max = 5
+default = 0
+access = "rw"
+description = "0 運控 / 1 PP / 2 速度 / 3 電流 / 5 CSP"
+
+[[params]]
+index = 0x7006
+key = "iq_ref"
+label = "電流指令(Iq)"
+group = "指令"
+dtype = "float"
+unit = "A"
+min = -11.0
+max = 11.0
+default = 0.0
+access = "rw"
+description = "電流モード Iq 指令"
+
+[[params]]
+index = 0x700A
+key = "spd_ref"
+label = "速度指令"
+group = "指令"
+dtype = "float"
+unit = "rad/s"
+min = -50.0
+max = 50.0
+default = 0.0
+access = "rw"
+description = "速度モード 速度指令"
+
+[[params]]
+index = 0x700B
+key = "limit_torque"
+label = "トルク制限"
+group = "制限"
+dtype = "float"
+unit = "N·m"
+min = 0.0
+max = 6.0
+default = 6.0
+access = "rw"
+description = "トルク制限"
+
+[[params]]
+index = 0x7010
+key = "cur_kp"
+label = "電流ループ Kp"
+group = "制御ゲイン"
+dtype = "float"
+unit = ""
+default = 0.17
+access = "rw"
+description = "電流ループ Kp"
+
+[[params]]
+index = 0x7011
+key = "cur_ki"
+label = "電流ループ Ki"
+group = "制御ゲイン"
+dtype = "float"
+unit = ""
+default = 0.012
+access = "rw"
+description = "電流ループ Ki"
+
+[[params]]
+index = 0x7014
+key = "cur_filt_gain"
+label = "電流フィルタ係数"
+group = "制御ゲイン"
+dtype = "float"
+unit = ""
+min = 0.0
+max = 1.0
+default = 0.1
+access = "rw"
+description = "電流フィルタ係数"
+
+[[params]]
+index = 0x7016
+key = "loc_ref"
+label = "位置指令"
+group = "指令"
+dtype = "float"
+unit = "rad"
+default = 0.0
+access = "rw"
+description = "位置モード角度指令(PP/CSP)"
+
+[[params]]
+index = 0x7017
+key = "limit_spd"
+label = "速度制限(位置モード)"
+group = "制限"
+dtype = "float"
+unit = "rad/s"
+min = 0.0
+max = 50.0
+default = 2.0
+access = "rw"
+description = "位置モード(CSP)速度制限"
+
+[[params]]
+index = 0x7018
+key = "limit_cur"
+label = "電流制限"
+group = "制限"
+dtype = "float"
+unit = "A"
+min = 0.0
+max = 11.0
+default = 11.0
+access = "rw"
+description = "速度・位置モード 電流制限"
+
+[[params]]
+index = 0x7019
+key = "mechPos"
+label = "負荷端の位置(多回転)"
+group = "状態"
+dtype = "float"
+unit = "rad"
+default = 0.0
+access = "r"
+description = "負荷端 多回転機械角"
+
+[[params]]
+index = 0x701A
+key = "iqf"
+label = "Iq フィルタ値"
+group = "状態"
+dtype = "float"
+unit = "A"
+default = 0.0
+access = "r"
+description = "iq フィルタ値"
+
+[[params]]
+index = 0x701B
+key = "mechVel"
+label = "負荷端の速度"
+group = "状態"
+dtype = "float"
+unit = "rad/s"
+default = 0.0
+access = "r"
+description = "負荷端 回転速度"
+
+[[params]]
+index = 0x701C
+key = "VBUS"
+label = "母線電圧"
+group = "状態"
+dtype = "float"
+unit = "V"
+default = 24.0
+access = "r"
+description = "母線電圧"
+
+[[params]]
+index = 0x701E
+key = "loc_kp"
+label = "位置ループ Kp"
+group = "制御ゲイン"
+dtype = "float"
+unit = ""
+default = 40.0
+access = "rw"
+description = "位置ループ Kp"
+
+[[params]]
+index = 0x701F
+key = "spd_kp"
+label = "速度ループ Kp"
+group = "制御ゲイン"
+dtype = "float"
+unit = ""
+default = 6.0
+access = "rw"
+description = "速度ループ Kp"
+
+[[params]]
+index = 0x7020
+key = "spd_ki"
+label = "速度ループ Ki"
+group = "制御ゲイン"
+dtype = "float"
+unit = ""
+default = 0.02
+access = "rw"
+description = "速度ループ Ki"
+
+[[params]]
+index = 0x7021
+key = "spd_filt_gain"
+label = "速度フィルタ値"
+group = "制御ゲイン"
+dtype = "float"
+unit = ""
+default = 0.1
+access = "rw"
+description = "速度フィルタ値"
+
+[[params]]
+index = 0x7022
+key = "acc_rad"
+label = "加速度(速度モード)"
+group = "制限"
+dtype = "float"
+unit = "rad/s²"
+default = 20.0
+access = "rw"
+description = "速度モード加速度"
+
+[[params]]
+index = 0x7024
+key = "vel_max"
+label = "最大速度(PP モード)"
+group = "制限"
+dtype = "float"
+unit = "rad/s"
+default = 10.0
+access = "rw"
+description = "PP モード速度"
+
+[[params]]
+index = 0x7025
+key = "acc_set"
+label = "加速度(PP モード)"
+group = "制限"
+dtype = "float"
+unit = "rad/s²"
+default = 10.0
+access = "rw"
+description = "PP モード加速度"
+
+[[params]]
+index = 0x7026
+key = "EPScan_time"
+label = "主動上報の周期"
+group = "設定"
+dtype = "uint16"
+unit = ""
+min = 0
+max = 65535
+default = 0
+access = "rw"
+description = "主動上報の周期。周期 = 10 + 5·N ms(0 = 10 ms。実機で確認。マニュアルの「1 = 10 ms」は誤り)"
+
+[[params]]
+index = 0x7028
+key = "canTimeout"
+label = "CAN タイムアウト"
+group = "設定"
+dtype = "uint32"
+unit = ""
+min = 0
+default = 0
+access = "rw"
+description = "CAN タイムアウト閾値(50 µs/count)"
+
+[[params]]
+index = 0x7029
+key = "zero_sta"
+label = "ゼロ点の範囲"
+group = "設定"
+dtype = "uint8"
+unit = ""
+min = 0
+max = 1
+default = 0
+access = "rw"
+description = "ゼロ点フラグ。0 → 0~2π、1 → -π~π"
+
+[[params]]
+index = 0x702B
+key = "add_offset"
+label = "ゼロ位オフセット"
+group = "設定"
+dtype = "float"
+unit = ""
+default = 0.0
+access = "rw"
+description = "ゼロ位オフセット"
+
+[[params]]
+index = 0x702C
+key = "alveolous_open"
+label = "コギング補償"
+group = "設定"
+dtype = "uint8"
+unit = ""
+min = 0
+max = 1
+default = 0
+access = "rw"
+description = "コギング補償スイッチ"
+
+[[params]]
+index = 0x702D
+key = "iq_test"
+label = "モータ初期化校正"
+group = "設定"
+dtype = "uint8"
+unit = ""
+min = 0
+max = 1
+default = 0
+access = "rw"
+description = "モータ初期化校正スイッチ"
+
+[[params]]
+index = 0x702E
+key = "dcc_set"
+label = "減速度(PP モード)"
+group = "制限"
+dtype = "float"
+unit = "rad/s²"
+default = 10.0
+access = "rw"
+description = "PP モード減速度(通常は無効)"

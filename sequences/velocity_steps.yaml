@@ -1,0 +1,26 @@
+# 速度ステップ(低速): 出力段階 LOW の範囲(速度 ≤ 5 rad/s、電流 ≤ 1 A)に収まる、ゆっくりした速度変化。
+# 有効化 → 0.5 → 1 → 2 rad/s と段階的に上げ、逆転 -1 rad/s を 2 秒 → 運転停止 → 無効化。
+# 実行: python -m edulite05.cli run-sequence sequences/velocity_steps.yaml --sim --yes
+#       (実機は --port COM7。モータを固定し、可動範囲に人や物がないことを確認すること)
+name: 速度ステップ(低速)
+description: 0.5 / 1 / 2 rad/s と段階的に上げ、-1 rad/s で逆転して止める(記録つき)
+steps:
+  - enable: velocity
+  - wait: 0.5
+  - record: start          # user_data/records/seq_<名前>_<日時>.csv
+  - start:
+      controller: velocity
+      params: {velocity: 0.5, accel: 10, current_limit: 0.5}
+  - wait: 2
+  - set_params: {velocity: 1.0}
+  - wait: 2
+  - set_params: {velocity: 2.0}
+  - wait: 2
+  - stop
+  - wait: 1
+  - run:
+      controller: velocity
+      params: {velocity: -1.0, accel: 10, current_limit: 0.5}
+      seconds: 2
+  - record: stop
+  - disable

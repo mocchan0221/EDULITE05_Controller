@@ -1,0 +1,4 @@
+# English strings for the scripting plugin. Page text lives in the core catalog ([script] in
+# ja.toml / en.toml); this file only holds the plugin's own name and description.
+"スクリプト" = "Script"
+"Python コンソールとシーケンス(YAML)でモータを動かすページ" = "Page that drives the motors from a Python console or a YAML sequence"

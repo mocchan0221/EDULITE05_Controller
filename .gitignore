@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+user_data/
+*.log
+.vscode/
+.idea/
+
+# Windows のサムネイルキャッシュ
+Thumbs.db
+
+# メーカーの一次資料は再配布の許可が明確でないため含めない(取得元は docs/vendor/README.md)。
+# 自分で書いた README と Web 調査の要約だけを追跡する
+docs/vendor/*
+!docs/vendor/README.md
+!docs/vendor/usb_can/
+docs/vendor/usb_can/*
+!docs/vendor/usb_can/web_notes_*.md
+
+# メーカーの STEP から変換した 3D モデル(tools/convert_step.py で生成。無いと簡易モデルで表示)
+assets/models/el05.glb
