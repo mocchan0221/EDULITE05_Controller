@@ -15,7 +15,6 @@ RobStride EduLite 05 (EL05) CAN アクチュエータを試運転・評価する
 
 - 起動時の出力段階は「低出力」です。最初はそのまま、速度 0.5 rad/s 程度の低速から試してください。
 - 非常停止は Pause キーです。モータが有効・運転中のときは Esc でも非常停止します。
-- venv はローカルディスク(`%LOCALAPPDATA%\edulite05\venv`)に置きます。共有フォルダ上に置くと import だけで 40–60 秒かかるためです。`run*.bat` はこの設定を自動で行います(下の「venv の置き場所」)。
 
 画面の見かた、安全のしくみ、各モードの操作、CLI の使い方は、[利用者マニュアル(docs/manual.md)](docs/manual.md) にあります。
 
@@ -26,13 +25,13 @@ RobStride EduLite 05 (EL05) CAN アクチュエータを試運転・評価する
 ## 起動方法
 | 方法 | 内容 |
 |---|---|
-| `run.bat` をダブルクリック | 実機モード(共有フォルダ上の UNC パスからでも可) |
+| `run.bat` をダブルクリック | 実機モード |
 | `run_sim.bat` をダブルクリック | シミュレータ(`--sim`。本物の制御コア + 模擬モータ) |
-| `uv run --frozen python -m edulite05 [--sim]` | コマンドラインから起動(下記「venv の置き場所」参照) |
+| `uv run --frozen python -m edulite05 [--sim]` | コマンドラインから起動 |
 | `uv run --frozen python -m edulite05.cli --help` | CLI(読み出し・運動・シーケンス。マニュアル §10) |
 | `./run.sh` | Linux 用 |
 
-初回は依存パッケージの取得(`uv sync` 相当)で時間がかかります。共有フォルダ上で使う場合、`run*.bat` は `UV_LINK_MODE=copy` を設定します。
+初回は依存パッケージの取得(`uv sync` 相当)で時間がかかります。
 
 ## 開発
 ```
@@ -84,14 +83,3 @@ uv run --no-project --with cascadio --with trimesh --with numpy python tools/con
 
 ## ライセンス
 MIT License(`LICENSE`)。`assets/icons/` の Lucide アイコンは ISC License(同梱の LICENSE)。
-
-## venv の置き場所
-ソースは共有フォルダ上ですが、**venv はローカルディスク** `%LOCALAPPDATA%\edulite05\venv` に作ります(`run*.bat` / `run.sh` が `UV_PROJECT_ENVIRONMENT` を自動設定)。共有フォルダ上に venv を置くと import に 40–60 秒、テスト全体に 41 分かかったためです(ローカルでは import 約 2–9 秒)。
-
-別の場所にしたい場合は、先に環境変数を設定してください(`run*.bat` は設定済みの値を優先します)。
-
-```
-setx UV_PROJECT_ENVIRONMENT C:\venvs\edulite05
-```
-
-コマンドラインで uv を直接使うときも、同じ変数と `UV_LINK_MODE=copy` を設定してから `uv run --frozen python -m edulite05` のように `python -m` 形式で実行してください(プロジェクトが UNC パスのため、`uv run edulite05` のようなコンソールスクリプト経由は PySide6 の DLL 読込に失敗することがあります)。
